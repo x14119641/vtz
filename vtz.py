@@ -54,8 +54,7 @@ class BLSscraper():
 
                     column = line[:len_to_split]
 
-                    first_item_row = 
-column[-1].split('end_period')[-1].strip()
+                    first_item_row = column[-1].split('end_period')[-1].strip()
                     column[-1] = 'end_period'
                     column[0] = column[0].strip()
                     line = list(line[len_to_split:])
@@ -74,31 +73,33 @@ column[-1].split('end_period')[-1].strip()
                         line = [item for item in line if item.strip()]
 
                     elif 'footnote_codes' not in df.columns:
-                        #ee,eb
+                        # ee,eb
                         print('KERE')
                         new = list(df.columns)
-                        new.insert(-4,'footnote_codes')
+                        new.insert(-4, 'footnote_codes')
 
                         df = pd.DataFrame(columns=new)
                     else:
-                        ## dont need at the moment
+                        # dont need at the moment
                         line = [item for item in line if item.strip()]
 
                 s = pd.Series(line, index=df.columns)
                 df = df.append(s, ignore_index=True)
             return df
-    def clean_columns(self,columns):
-        replace_dict= {
-            "data_type_code":"datatype_code"
-        }
-        return [replace_dict.get(item,item)  for item in columns]
 
-    def get_codes_names(self,columns):
+    def clean_columns(self, columns):
+        replace_dict = {
+            "data_type_code": "datatype_code",
+            "industryb_code": "industrybase_code",
+            "mog_code": "mogocc_code"
+        }
+        return [replace_dict.get(item, item) for item in columns]
+
+    def get_codes_names(self, columns):
         codes_names_to_append = ['seasonal']
 
-        codes_names = [name_code.split('_')[0] for name_code in columns if 
-'code' in name_code]
-        return codes_names
+        codes_names = [name_code.split('_')[0] for name_code in columns if 'code' in name_code]
+        return codes_names + codes_names_to_append
 
     def get_codes_data(self, key):
         data = requests.get(
@@ -106,7 +107,8 @@ column[-1].split('end_period')[-1].strip()
         data = lh.fromstring(data.text)
         x = [item.split('.')[1] for item in data.xpath('//a/text()')[1:]]
         return x
-    def iterate_codes_list_and_build_df(self,data):
+
+    def iterate_codes_list_and_build_df(self, data):
         res = []
         print(data)
         for item in data:
@@ -125,25 +127,26 @@ column[-1].split('end_period')[-1].strip()
 
     def checking_codes_names(self, codes_names, codes_data):
         print(set(codes_names).issubset(codes_data))
+
     def format_columns(self, columns):
         pass
-    def format_data_str(self,data_str):
+
+    def format_data_str(self, data_str):
         '''format ---- data_str'''
 
         data_str = re.findall(r'-{1,}[\s\S]*$', data_str)[0]
         data_str = re.findall(r'[A-z0-9][\s\S]*$', data_str)[0]
 
-        data_str=data_str.split('\r\n')
+        data_str = data_str.split('\r\n')
         data_str = [re.split(r'\s{2,}', ite) for ite in data_str]
 
         return data_str
-    def format_codes_special_chrs(self, data_str):
 
+    def format_codes_special_chrs(self, data_str):
 
         if not '- -' in data_str:
 
-
-            data_str = data_str.replace(key.upper() + ' Measure','')
+            data_str = data_str.replace(key.upper() + ' Measure', '')
             data_str = re.findall(r'[a-zA-z0-9][\s\S]*$', data_str)[0]
 
             data_str = data_str.split('\r\n')
@@ -156,13 +159,12 @@ column[-1].split('end_period')[-1].strip()
         df = pd.DataFrame(res)
         return df
 
-
     def read_tables(self, key, table_key):
         if '_' in table_key:
-            table_key = table_key.replace('_','.')
-        elif 'srd' == table_key and key !='ml':
+            table_key = table_key.replace('_', '.')
+        elif 'srd' == table_key and key != 'ml':
             table_key = 'state_region_division'
-        elif 'periodicity' == table_key and key=='li':
+        elif 'periodicity' == table_key and key == 'li':
             table_key = 'period'
 
         if 'hs' == key:
@@ -170,8 +172,8 @@ column[-1].split('end_period')[-1].strip()
             if 'case' == table_key:
                 data = requests.get(
                     f'{BLSscraper.main_url}{key}/{key}.case.type')
-            elif 'datatype' ==table_key:
-                data=requests.get(
+            elif 'datatype' == table_key:
+                data = requests.get(
                     f'{BLSscraper.main_url}{key}/{key}.data.type')
             else:
                 data = requests.get(
@@ -181,8 +183,8 @@ column[-1].split('end_period')[-1].strip()
             if 'case' == table_key:
                 data = requests.get(
                     f'{BLSscraper.main_url}{key}/{key}.case_type')
-            elif 'datatype' ==table_key:
-                data=requests.get(
+            elif 'datatype' == table_key:
+                data = requests.get(
                     f'{BLSscraper.main_url}{key}/{key}.data_type')
             else:
                 data = requests.get(
@@ -206,23 +208,36 @@ column[-1].split('end_period')[-1].strip()
             res = bls.format_codes_special_chrs(data.text)
             print(res)
             return res
-        print('TABA')
-        x =   re.split(r'\s{2,}', data.text)
+        elif key == 'nc' and table_key == 'area':
+            print('IN THE nc.area  PUTO')
+            print('##############\n'*5)
+            x = data.text.split('\r\n')
+            x = [item.split('\t')[1:3] for item in x if item.split('\t')]
+        elif key == 'nc'and table_key == 'occupation':
+            print('IN THE OCCUPATION MA NI')
+            x = data.text.split('\r\n')
+            x = [item.split('\t')[:4] for item in x if item.split('\t')]
+            x = [[''.join(item[:2]), item[-1]] for item in x]
+
+        else:
+
+            print('TABA')
+            x = re.split(r'\s{2,}', data.text)
+            print(x)
+
+            x = [item.split('\t') for item in x if item.split('\t')]
         print(x)
-        x = [item.split('\t') for item in x if item.split('\t')]
-        if len(x[-1])==1 :
+        if len(x[-1]) == 1:
             print('EMpty')
             x = x[:-1]
-        if key =='hc' and (
-            table_key =='occupation' or table_key=='nature'):
+        if key == 'hc' and (
+                table_key == 'occupation' or table_key == 'nature'):
             print('HC EXCPETION')
             del x[1:3]
-        if len(x)==1:
+        if len(x) == 1:
             # When empty codes
             print('len(x)==1')
             pass
-
-
 
         elif len(x[0]) > len(x[1]) and len(x[1]) > len(x[2]):
             # cc
@@ -236,15 +251,24 @@ column[-1].split('end_period')[-1].strip()
 
             # x[1:] = [sum(x[1::i+2]) for i in range(0,len(x[:1]),2)]
         elif len(x[0]) < len(x[1]):
-            #cd. missing "indixes"
+            # cd. missing "indixes"
             print('len(x[0]) < len(x[1])')
             x[1:] = [item[:-1] for item in x[1::2]]
         elif len(x[0]) > len(x[1]):
             print('len(x[0]) > len(x[1])')
-            x[0] = x[0][1:]
+            if key == 'ml' and table_key == 'srd':
+                print('IN THE SLR ML PUTO')
+                x = [item[0:-1] for item in x[::2]]
+                x.insert(0, [f'{table_key}_code', f'{table_key}_text'])
+            # elif key == 'nc' and table_key == 'area':
+            #     print('IN THE nc.area  PUTO')
+            #     x = [item[1:-1] for item in x[::2]]
+            #     x.insert(0, [f'{table_key}_code', f'{table_key}_text'])
+            else:
+                x[0] = x[0][1:]
         try:
             print(x)
-            if len(x)==2 and len(x[0])==2:
+            if len(x) == 2 and len(x[0]) == 2:
                 print('list of two')
                 if key == 'ml':
                     df = pd.DataFrame(x,
@@ -253,19 +277,22 @@ column[-1].split('end_period')[-1].strip()
 
                 else:
                     df = pd.DataFrame([x[1]],
-                                  columns=x[0])
+                                      columns=x[0])
 
-            elif len(x)==2 and len(x[0])==1:
+            elif len(x) == 2 and len(x[0]) == 1:
                 print('HEREEEEEEEEEE')
-                x = [x[0][0],x[1][0]]
+                x = [x[0][0], x[1][0]]
                 print(x)
                 df = pd.DataFrame([x],
                                   columns=[f'{table_key}_code',
                                            f'{table_key}_text'])
-
+            elif any('code' not in item for item in x[0]) and len(x[0]) == 2:
+                df = pd.DataFrame(x,
+                                  columns=[f'{table_key}_code',
+                                           f'{table_key}_text'])
             else:
                 df = pd.DataFrame(x[1:],
-                              columns=self.clean_columns(x[0]))
+                                  columns=self.clean_columns(x[0]))
             return df
         except Exception as e:
             print(x)
@@ -275,25 +302,33 @@ column[-1].split('end_period')[-1].strip()
 if __name__ == '__main__':
     bls = BLSscraper()
     # bls.read_tables('ap', 'area')
-    for i, key in enumerate(list(bls.key_names)[31:]):
+    for i, key in enumerate(list(bls.key_names)[41:]):
         print('KEY ---> ', key, ', i:', i)
         start = time.perf_counter()
         data_str = bls.read_main_series(key)
 
         main_series = bls.convert_str_to_df(data_str)
-        print(main_series.head(10))
-        name_codes = bls.get_codes_names(
-            bls.clean_columns(main_series.columns))
+        if isinstance(main_series, pd.DataFrame):
+            print(main_series.head(10))
+
+            name_codes = bls.get_codes_names(
+                bls.clean_columns(main_series.columns))
+
+        else:
+            print('IS instance')
+            continue
         # codes_data = bls.get_codes_data(key)
         # # bls.checking_codes_names(name_codes,codes_data)
         print(name_codes)
         for code in name_codes:
-            if code =='labor':
-                code='labor_force'
-            print(key,code)
-            df=bls.read_tables(key,code)
+            if code == 'labor':
+                code = 'labor_force'
+            print(key, code)
+            df = bls.read_tables(key, code)
 
-            print('The df:\n',df)
+            print('The df:\n', df)
+            # print(df.columns)
+            # print(df.iloc[:, :2])
             if not isinstance(df, pd.DataFrame):
                 break
         print(time.perf_counter()-start)
@@ -301,4 +336,3 @@ if __name__ == '__main__':
 
         time.sleep(3)
         # break
-

@@ -91,7 +91,9 @@ class BLSscraper():
         replace_dict = {
             "data_type_code": "datatype_code",
             "industryb_code": "industrybase_code",
-            "mog_code": "mogocc_code"
+            "mog_code": "mogocc_code",
+            "seasonality": "seasonal",
+            "job": "job_characteristic_code"
         }
         return [replace_dict.get(item, item) for item in columns]
 
@@ -166,37 +168,81 @@ class BLSscraper():
             table_key = 'state_region_division'
         elif 'periodicity' == table_key and key == 'li':
             table_key = 'period'
-
-        if 'hs' == key:
+        elif 'job' == table_key:
+            print('IN THE JOB')
+            table_key = 'job_characteristic'
+        if table_key == 'soc':
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.occupation')
+        elif 'hs' == key:
             print('datatypeeeeeeeee hsss')
             if 'case' == table_key:
-                data = requests.get(
-                    f'{BLSscraper.main_url}{key}/{key}.case.type')
+                table_key = 'case.type'
             elif 'datatype' == table_key:
-                data = requests.get(
-                    f'{BLSscraper.main_url}{key}/{key}.data.type')
-            else:
-                data = requests.get(
-                    f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+                table_key = 'data.type'
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.{table_key}')
         elif 'ii' == key:
             print('datatypeeeeeeeee ii')
             if 'case' == table_key:
-                data = requests.get(
-                    f'{BLSscraper.main_url}{key}/{key}.case_type')
+                table_key = 'case_type'
+
             elif 'datatype' == table_key:
+                table_key = 'data_type'
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        elif 'nw' == key:
+            print('datatypeeeeeeeee nw')
+            if table_key in ['state', 'area']:
                 data = requests.get(
-                    f'{BLSscraper.main_url}{key}/{key}.data_type')
+                    f'{BLSscraper.main_url}{key}/{key}.starea')
+            elif table_key in ['estimate', 'subcell', 'datatype']:
+                data = requests.get(
+                    f'{BLSscraper.main_url}{key}/{key}.{table_key}_id')
             else:
                 data = requests.get(
                     f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        elif 'oe' == key:
+            print('INT HTE STATE')
+            if table_key == 'state':
+                data = requests.get(
+                    f'{BLSscraper.main_url}{key}/{key}.area')
+
+            else:
+                data = requests.get(
+                    f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        # elif 'sa' == key:
+        #     if table_key == 'datatype':
+        #         table_key = 'data_type'
+        #     data = requests.get(
+        #         f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        elif 'sh' == key:
+            if table_key == 'datatype':
+                table_key = 'data.type'
+            elif table_key == 'case':
+                table_key = 'case.type'
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        elif key in ['si', 'sa', 'sm']:
+            if table_key == 'datatype':
+                table_key = 'data_type'
+            elif table_key == 'case':
+                table_key = 'case_type'
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.{table_key}')
 
         else:
+
+            data = requests.get(
+                f'{BLSscraper.main_url}{key}/{key}.{table_key}')
+        if not data:
+            print('Reduing the data ')
             data = requests.get(
                 f'{BLSscraper.main_url}{key}/{key}.{table_key}')
 
         print('data --> ', str(data))
         if '404' in str(data):
-            print('PAGE NOT EXIST')
+            print('PAGE NOT EXIST\n')
             return None
         print(str(data.text))
 
@@ -218,7 +264,12 @@ class BLSscraper():
             x = data.text.split('\r\n')
             x = [item.split('\t')[:4] for item in x if item.split('\t')]
             x = [[''.join(item[:2]), item[-1]] for item in x]
-
+        elif key == 'pd' and table_key in ['product', 'industry']:
+            print('IN THE OEEOEOEOEOEOE PUTO')
+            print('##############\n'*5)
+            x = data.text.split('\r\n')
+            x = [item.split('\t') for item in x if item.split('\t')]
+            x = [[it for it in item if it] if item else item for item in x]
         else:
 
             print('TABA')
@@ -226,7 +277,10 @@ class BLSscraper():
             print(x)
 
             x = [item.split('\t') for item in x if item.split('\t')]
-        print(x)
+        print(' in th exx::\n'*5)
+        print(set([len(z) for z in x]))
+        print([z for z in x if len(z) == 1])
+        print(' in th exx::\n'*5)
         if len(x[-1]) == 1:
             print('EMpty')
             x = x[:-1]
@@ -254,6 +308,8 @@ class BLSscraper():
             # cd. missing "indixes"
             print('len(x[0]) < len(x[1])')
             x[1:] = [item[:-1] for item in x[1::2]]
+            if len(x[-1]) > len(x[0]):
+                x = x[:-1]
         elif len(x[0]) > len(x[1]):
             print('len(x[0]) > len(x[1])')
             if key == 'ml' and table_key == 'srd':
@@ -267,7 +323,7 @@ class BLSscraper():
             else:
                 x[0] = x[0][1:]
         try:
-            print(x)
+            # print(x)
             if len(x) == 2 and len(x[0]) == 2:
                 print('list of two')
                 if key == 'ml':
@@ -302,7 +358,9 @@ class BLSscraper():
 if __name__ == '__main__':
     bls = BLSscraper()
     # bls.read_tables('ap', 'area')
-    for i, key in enumerate(list(bls.key_names)[41:]):
+
+    for i, key in enumerate(list(bls.key_names)[0:]):
+
         print('KEY ---> ', key, ', i:', i)
         start = time.perf_counter()
         data_str = bls.read_main_series(key)
@@ -323,6 +381,10 @@ if __name__ == '__main__':
         for code in name_codes:
             if code == 'labor':
                 code = 'labor_force'
+            if key == 'nw' and code == 'seasonal':
+                # not exists
+                print('nw and noc')
+                continue
             print(key, code)
             df = bls.read_tables(key, code)
 
